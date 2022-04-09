@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
+
 // Interface for the FakeNFTMarketplace
 interface IFakeNFTMarketplace {
     /// @dev nftPurchasePrice() reads the value of the public uint256 variable `nftPurchasePrice`
@@ -50,7 +52,7 @@ interface IWholesomeNFT {
     function ownerOf(uint256 tokenId) external view returns (address owner);
 }
 
-contract WholesomeDAO {
+contract WholesomeDAO is IERC721Receiver{
 
     // way for people to become member of the dao
 
@@ -66,7 +68,7 @@ contract WholesomeDAO {
     IFakeNFTMarketplace nftMarketplace;
     IWholesomeNFT wholesomeNFT;
 
-    constructor(address nftContract, address, marketplaceContract) payable {
+    constructor(address nftContract, address, nftMarketplace) payable {
         wholesomeNFT = IWholesomeNFT(nftContract);
         nftMarketplace = IFakeNFTMarketplace(marketplaceContract);
     }
@@ -84,16 +86,11 @@ contract WholesomeDAO {
     struct Proposal {
         //token to buy or sell from the fake marketplace
         uint256 nftTokenId;
-        //how lond does voting go on
         uint256 deadline;
-
         uint256 yayVotes;
         uint256 nayVotes;
-
         bool executed;
-        
         ProposalType ProposalType;
-
         mapping(address => bool) voters;
     }
     
@@ -105,6 +102,8 @@ contract WholesomeDAO {
 
     mapping (uint256 => Proposal) public proposals;
     mapping (address => Member) public members;
+
+    mapping(uint256 => bool) public tokenLockedUp;
 
     uint256 public numProposals;
     uint256 public totalVotingPower;
@@ -173,4 +172,54 @@ contract WholesomeDAO {
             }
         }
     }
+
+    function onERC721Received(
+        address,
+        address from,
+        uint256 tokenId,
+        bytes memory
+    ) public override returns (bytes4) {
+        require(wholesomeNFT.ownerOf(tokenId) == address(this), "NOT_OWNED");
+        require(tokenLockedUp[tokenId] == false, "ALREADY_USED");
+
+        Member storage member = members[from];
+        if(member.lockedUpNFTS.length == 0) {
+            member.joinedAt = block.timestamp;
+        }
+
+        totalVotingPower++;
+        
+        members[from].lockedUpNFTS.push(tokenId);
+        return this.onERC721Received.selector;
+    }
+
+
+    function quit() external membrOnly {
+        Member storage member = members(msg.sender);
+        require(
+            block.timestamp - member.joinedAt > 5 minutes,
+            "MIN_MEMBERSHIP_PERIOD"
+        );
+
+        uint256 share = (address(this).balance * member.lockedUpNFTS.length) / totalVotingPower;
+
+        totalVotingPower -= member.lockedUpNFTS.length;
+        payable(msg.sender).transfer(share);
+
+        for(uint256 i = 0; i < member.lockedUpNFTS.length; i++) {
+            wholesomeNFT.safeTransferFrom(
+                address(this),
+                msg.sender,
+                member.lockedUpNFTS[i],
+                ""
+            );
+        }
+        delete members[msg.sender];
+    }
+
+    // receive and fallback
+
+    receive() external payable {}
+    
+    fallback() external payable {}
 }
