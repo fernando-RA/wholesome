@@ -37,4 +37,10 @@ contract FakeNFTMarketplace {
         }
         return false;
     }
+
+    /// @dev ownerOf() returns the owner of a given tokenId - address(0) if not owned by anyone
+    /// @param _tokenId - the tokenId to check for
+    function ownerOf(uint256 _tokenId) external view returns (address) {
+        return tokens[_tokenId];
+    }
 }

@@ -50,4 +50,127 @@ interface ICryptoDevsNFT {
     function ownerOf(uint256 tokenId) external view returns (address owner);
 }
 
-contract CryptoDevsDAO {}
+contract CryptoDevsDAO {
+
+    // way for people to become member of the dao
+
+    // way for people to leave the DAO
+
+    // create proposal in the DAO
+
+    // vote yes or no on a proposal
+
+    // execute proposal
+
+
+    IFakeNFTMarketplace nftMarketplace;
+    ICryptoDevsNFT cryptoDevsNFT;
+
+    constructor(address nftContract, address, marketplaceContract) payable {
+        cryptoDevsNFT = ICryptoDevsNFT(nftContract);
+        nftMarketplace = IFakeNFTMarketplace(marketplaceContract);
+    }
+
+    enum ProposalType {
+        BUY,
+        SELL
+    }
+
+    enum VoteType {
+        YAY,
+        NAY
+    }
+
+    struct Proposal {
+        //token to buy or sell from the fake marketplace
+        uint256 nftTokenId;
+        //how lond does voting go on
+        uint256 deadline;
+
+        uint256 yayVotes;
+        uint256 nayVotes;
+
+        bool executed;
+        
+        ProposalType ProposalType;
+
+        mapping(address => bool) voters;
+    }
+    
+    struct Member {
+        uint256 joinedAt;
+        // array of tokenIds owned by member
+        uint256[] lockedUpNFTS;
+    }
+
+    mapping (uint256 => Proposal) public proposals;
+    mapping (address => Member) public members;
+
+    uint256 public numProposals;
+    uint256 public totalVotingPower;
+
+    modifier memberOnly() {
+        require(members[msg.sender].lockedUpNFTS > 0, "NOT A MEMBER");
+        _;
+    }
+
+    function createProposal(uint256, _forTokenId, ProposalType _proposalType)
+    external
+    memberOnly
+    returns (uint256) 
+    {
+        if(_proposalType == ProposalType.BUY) {
+            require(nftMarketplace.available(_forTokenId), "TOKEN NOT AVAILABLE");
+        } else {
+            require(
+                nftMarketplace.ownerOf(_forTokenId) == address(this),
+                "NOT_OWNED"
+            );
+        }
+        Proposal storage proposal = proposals[numProposals];
+        proposal.nftTokenId = _forTokenId;
+        proposal.deadline = block.timestamp + 2 minutes;
+        proposal.ProposalType = _proposalType;
+        numProposals++;
+
+        return numProposals - 1;
+    }
+
+
+    function voteOnProposal(uint256 _proposalId, VoteType _voteType) 
+    external 
+    memberOnly {
+        Proposal storage proposal = proposals[_proposalId];
+        require(proposal.deadline > block.timestamp, "INACTIVE_PROPOSAL");
+        require(proposal.voters[msg.sender] == false, "ALREADY_VOTED");
+        proposal.voters[msg.sender] = true;
+        uint256 votingPower = members[msg.sender].lockedUpNFTS.length;
+
+        if(_vote == VoteType.YAY) {
+            proposal.yayVotes += votingPower;
+        } else {
+            proposal.nayVotes += votingPower;
+        }
+    }
+
+
+    function executeProposal(uint256 _proposalId) external memberOnly {
+        Proposal storage proposal = proposals[_proposalId];
+        require(proposal.deadline <= block.timestamp, "ACTIVE_PROPOSAL");
+        require(proposal.executed == false, "ALREADY_EXECUTED");
+        require(proposal.yayVotes > proposal.nayVotes, "INSUFFICIENT_VOTES");
+
+        proposal.executed = true;
+        if(proposal.yayVotes > proposal.nayVotes) {
+            if (proposal.ProposalType == ProposalType.BUY) {
+                uint256 purchasePrice = nftMarketplace.nftPurchasePrice();
+                require(address(this).balance >= purchasePrice, "INSUFFICIENT_FUNDS");
+                nftMarketplace.purchase{value: purchasePrice}(
+                    proposal.nftTokenId
+                );
+            } else {
+                nftMarketplace.sell(proposal.nftTokenId);
+            }
+        }
+    }
+}
