@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  * Super simple NFT contract that uses `ERC721Enumerable`
  * Allows for free NFT mints until `MAX_NFTS` count is reached
  */
-contract CryptoDevsNFT is ERC721Enumerable, Ownable {
+contract WholesomeNFT is ERC721Enumerable, Ownable {
     uint256 public immutable MAX_NFTS;
 
     uint256 tokenIdCounter;

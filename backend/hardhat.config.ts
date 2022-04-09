@@ -9,24 +9,24 @@ import "solidity-coverage";
 
 dotenv.config();
 
-task("mintFreeNFT", "Mint Free NFT from CryptoDevs NFT")
+task("mintFreeNFT", "Mint Free NFT from Wholesome NFT")
   .addParam("nftContract", "The NFT contract's address")
   .setAction(async (args, hre) => {
     const NFTContract = await hre.ethers.getContractAt(
-      "CryptoDevsNFT",
+      "WholesomeNFT",
       args.nftContract
     );
 
     const txn = await NFTContract.freeMint();
     await txn.wait();
-    console.log("Successfully minted a CryptoDevs NFT");
+    console.log("Successfully minted a Wholesome NFT");
   });
 
-task("getNFTBalance", "Get the CryptoDevs NFT balance of your address")
+task("getNFTBalance", "Get the Wholesome NFT balance of your address")
   .addParam("nftContract", "The NFT contract's address")
   .setAction(async (args, hre) => {
     const NFTContract = await hre.ethers.getContractAt(
-      "CryptoDevsNFT",
+      "WholesomeNFT",
       args.nftContract
     );
     const signers = await hre.ethers.getSigners();
@@ -42,7 +42,7 @@ task("sendNFTToDAO", "Send CryptoDev NFT to DAO")
   .addParam("tokenId", "The NFT token ID to send")
   .setAction(async (args, hre) => {
     const NFTContract = await hre.ethers.getContractAt(
-      "CryptoDevsNFT",
+      "WholesomeNFT",
       args.nftContract
     );
 
@@ -56,7 +56,7 @@ task("sendNFTToDAO", "Send CryptoDev NFT to DAO")
     );
     await txn.wait();
     console.log(
-      "Successfully transferred a CryptoDevs NFT to the CryptoDevs DAO to gain membership"
+      "Successfully transferred a Wholesome NFT to the Wholesome DAO to gain membership"
     );
   });
 
@@ -77,7 +77,7 @@ task("quitDAO", "Quit the DAO")
   .addParam("daoContract", "The DAO contract's address")
   .setAction(async (args, hre) => {
     const DAOContract = await hre.ethers.getContractAt(
-      "CryptoDevsDAO",
+      "WholesomeDAO",
       args.daoContract
     );
 
@@ -91,7 +91,7 @@ task("createProposalBuy", "Create a proposal in the DAO to buy a fake NFT")
   .addParam("forTokenId", "The fake token ID to buy from the fake marketplace")
   .setAction(async (args, hre) => {
     const DAOContract = await hre.ethers.getContractAt(
-      "CryptoDevsDAO",
+      "WholesomeDAO",
       args.daoContract
     );
 
@@ -110,7 +110,7 @@ task("createProposalSell", "Create a proposal in the DAO to sell a fake NFT")
   .addParam("forTokenId", "The fake token ID to sell from the fake marketplace")
   .setAction(async (args, hre) => {
     const DAOContract = await hre.ethers.getContractAt(
-      "CryptoDevsDAO",
+      "WholesomeDAO",
       args.daoContract
     );
 
@@ -142,7 +142,7 @@ task("executeProposal", "Execute a proposal in the DAO")
   .addParam("proposalId", "The ID of the proposal to execute")
   .setAction(async (args, hre) => {
     const DAOContract = await hre.ethers.getContractAt(
-      "CryptoDevsDAO",
+      "WholesomeDAO",
       args.daoContract
     );
 
@@ -156,7 +156,7 @@ task("voteYesOnProposal", "Vote YAY for a proposal in the DAO")
   .addParam("proposalId", "The ID of the proposal to vote on")
   .setAction(async (args, hre) => {
     const DAOContract = await hre.ethers.getContractAt(
-      "CryptoDevsDAO",
+      "WholesomeDAO",
       args.daoContract
     );
 
@@ -170,7 +170,7 @@ task("voteNoOnProposal", "Vote NAY for a proposal in the DAO")
   .addParam("proposalId", "The ID of the proposal to vote on")
   .setAction(async (args, hre) => {
     const DAOContract = await hre.ethers.getContractAt(
-      "CryptoDevsDAO",
+      "WholesomeDAO",
       args.daoContract
     );
 
@@ -184,7 +184,7 @@ task("getProposal", "Get proposal")
   .addParam("proposalId", "The ID of the proposal to vote on")
   .setAction(async (args, hre) => {
     const DAOContract = await hre.ethers.getContractAt(
-      "CryptoDevsDAO",
+      "WholesomeDAO",
       args.daoContract
     );
 

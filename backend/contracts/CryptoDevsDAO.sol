@@ -23,8 +23,8 @@ interface IFakeNFTMarketplace {
     function sell(uint256 _tokenId) external;
 }
 
-// Minimal interface for CryptoDevs NFT containing the functions we care about
-interface ICryptoDevsNFT {
+// Minimal interface for Wholesome NFT containing the functions we care about
+interface IWholesomeNFT {
     /// @dev balanceOf returns the number of NFTs owned by the given address
     /// @param owner - address to fetch number of NFTs for
     /// @return Returns the number of NFTs owned
@@ -50,7 +50,7 @@ interface ICryptoDevsNFT {
     function ownerOf(uint256 tokenId) external view returns (address owner);
 }
 
-contract CryptoDevsDAO {
+contract WholesomeDAO {
 
     // way for people to become member of the dao
 
@@ -64,10 +64,10 @@ contract CryptoDevsDAO {
 
 
     IFakeNFTMarketplace nftMarketplace;
-    ICryptoDevsNFT cryptoDevsNFT;
+    IWholesomeNFT wholesomeNFT;
 
     constructor(address nftContract, address, marketplaceContract) payable {
-        cryptoDevsNFT = ICryptoDevsNFT(nftContract);
+        wholesomeNFT = IWholesomeNFT(nftContract);
         nftMarketplace = IFakeNFTMarketplace(marketplaceContract);
     }
 
