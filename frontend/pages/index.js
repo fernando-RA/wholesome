@@ -1,377 +1,327 @@
-import { Contract, providers } from "ethers";
-import { formatEther } from "ethers/lib/utils";
-import Head from "next/head";
-import { useEffect, useRef, useState } from "react";
-import Web3Modal from "web3modal";
-import {
-  WHOLESOME_DAO_ABI,
-  WHOLESOME_DAO_CONTRACT_ADDRESS,
-  WHOLESOME_NFT_ABI,
-  WHOLESOME_NFT_CONTRACT_ADDRESS,
-} from "../constants";
-import styles from "../styles/Home.module.css";
+import { useEffect, useMemo, useState } from "react";
+import { ethers } from "ethers";
+
+import { useWeb3 } from "@3rdweb/hooks";
+import { ThirdwebSDK } from "@3rdweb/sdk";
+
+import styles from '../styles/Home.module.css'
+
+const sdk = new ThirdwebSDK("rinkeby");
+
+const bundleDropModule = sdk.getBundleDropModule(
+  "0x07D2bb493Ca8ebF2FE760d157Af2e761921Dd376",
+);
+
+const tokenModule = sdk.getTokenModule(
+  "0xA2451e2626D16a146c92C6cDf68D8Ef1B9b3B8b4"
+);
+
+const voteModule = sdk.getVoteModule(
+  "0x7cfBaFEd62AFa654db14b7e45EF885ae6Bd29EB5"
+);
+
 
 export default function Home() {
-  const [treasuryBalance, setTreasuryBalance] = useState("0");
-  const [numProposals, setNumProposals] = useState("0");
-  const [proposals, setProposals] = useState([]);
-  const [nftBalance, setNftBalance] = useState(0);
-  const [fakeNftTokenId, setFakeNftTokenId] = useState("");
-  const [selectedTab, setSelectedTab] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [walletConnected, setWalletConnected] = useState(false);
-  const web3ModalRef = useRef();
+  const { connectWallet, address, error, provider } = useWeb3();
+  console.log("👋 Address:", address);
+  const signer = provider ? provider.getSigner() : undefined;
 
-  // Helper function to connect wallet
-  const connectWallet = async () => {
-    try {
-      await getProviderOrSigner();
-      setWalletConnected(true);
-    } catch (error) {
-      console.error(error);
-    }
+  const [hasClaimedNFT, setHasClaimedNFT] = useState(false);
+  const [isClaiming, setIsClaiming] = useState(false);
+  const [memberTokenAmounts, setMemberTokenAmounts] = useState({});
+  const [memberAddresses, setMemberAddresses] = useState([]);
+
+  const shortenAddress = (str) => {
+    return str.substring(0, 6) + "..." + str.substring(str.length - 4);
   };
 
-  // Reads the ETH balance of the DAO contract and sets the `treasuryBalance` state variable
-  const getDAOTreasuryBalance = async () => {
-    try {
-      const provider = await getProviderOrSigner();
-      const balance = await provider.getBalance(
-        WHOLESOME_DAO_CONTRACT_ADDRESS
-      );
-      setTreasuryBalance(balance.toString());
-    } catch (error) {
-      console.error(error);
+  useEffect(() => {
+    if (!hasClaimedNFT) {
+      return;
     }
-  };
 
-  // Reads the number of proposals in the DAO contract and sets the `numProposals` state variable
-  const getNumProposalsInDAO = async () => {
-    try {
-      const provider = await getProviderOrSigner();
-      const contract = getDaoContractInstance(provider);
-      const daoNumProposals = await contract.numProposals();
-      setNumProposals(daoNumProposals.toString());
-    } catch (error) {
-      console.error(error);
+    bundleDropModule
+      .getAllClaimerAddresses("0")
+      .then((addresess) => {
+        console.log("🚀 Members addresses", addresess);
+        setMemberAddresses(addresess);
+      })
+      .catch((err) => {
+        console.error("failed to get member list", err);
+      });
+  }, [hasClaimedNFT]);
+
+  useEffect(() => {
+    if (!hasClaimedNFT) {
+      return;
     }
-  };
 
-  // Reads the balance of the user's Wholesome NFTs and sets the `nftBalance` state variable
-  const getUserNFTBalance = async () => {
-    try {
-      const signer = await getProviderOrSigner(true);
-      const nftContract = getWholesomeNFTContractInstance(signer);
-      const balance = await nftContract.balanceOf(signer.getAddress());
-      setNftBalance(parseInt(balance.toString()));
-    } catch (error) {
-      console.error(error);
-    }
-  };
+    tokenModule
+      .getAllHolderBalances()
+      .then((amounts) => {
+        console.log("👜 Amounts", amounts);
+        setMemberTokenAmounts(amounts);
+      })
+      .catch((err) => {
+        console.error("failed to get token amounts", err);
+      });
+  }, [hasClaimedNFT]);
 
-  // Calls the `createProposal` function in the contract, using the tokenId from `fakeNftTokenId`
-  const createProposal = async () => {
-    try {
-      const signer = await getProviderOrSigner(true);
-      const daoContract = getDaoContractInstance(signer);
-      const txn = await daoContract.createProposal(fakeNftTokenId);
-      setLoading(true);
-      await txn.wait();
-      await getNumProposalsInDAO();
-      setLoading(false);
-    } catch (error) {
-      console.error(error);
-      window.alert(error.data.message);
-    }
-  };
-
-  // Helper function to fetch and parse one proposal from the DAO contract
-  // Given the Proposal ID
-  // and converts the returned data into a Javascript object with values we can use
-  const fetchProposalById = async (id) => {
-    try {
-      const provider = await getProviderOrSigner();
-      const daoContract = getDaoContractInstance(provider);
-      const proposal = await daoContract.proposals(id);
-      const parsedProposal = {
-        proposalId: id,
-        nftTokenId: proposal.nftTokenId.toString(),
-        deadline: new Date(parseInt(proposal.deadline.toString()) * 1000),
-        yayVotes: proposal.yayVotes.toString(),
-        nayVotes: proposal.nayVotes.toString(),
-        executed: proposal.executed,
+  const memberList = useMemo(() => {
+    return memberAddresses.map((address) => {
+      return {
+        address,
+        tokenAmount: ethers.utils.formatUnits(
+          memberTokenAmounts[address] || 0,
+          18,
+        ),
       };
-      return parsedProposal;
-    } catch (error) {
-      console.error(error);
-    }
-  };
+    });
+  }, [memberAddresses, memberTokenAmounts]);
 
-  // Runs a loop `numProposals` times to fetch all proposals in the DAO
-  // and sets the `proposals` state variable
-  const fetchAllProposals = async () => {
-    try {
-      const proposals = [];
-      for (let i = 0; i < numProposals; i++) {
-        const proposal = await fetchProposalById(i);
-        proposals.push(proposal);
-      }
-      setProposals(proposals);
-      return proposals;
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  // Calls the `voteOnProposal` function in the contract, using the passed
-  // proposal ID and Vote
-  const voteOnProposal = async (proposalId, _vote) => {
-    try {
-      const signer = await getProviderOrSigner(true);
-      const daoContract = getDaoContractInstance(signer);
-
-      let vote = _vote === "YAY" ? 0 : 1;
-      const txn = await daoContract.voteOnProposal(proposalId, vote);
-      setLoading(true);
-      await txn.wait();
-      setLoading(false);
-      await fetchAllProposals();
-    } catch (error) {
-      console.error(error);
-      window.alert(error.data.message);
-    }
-  };
-
-  // Calls the `executeProposal` function in the contract, using
-  // the passed proposal ID
-  const executeProposal = async (proposalId) => {
-    try {
-      const signer = await getProviderOrSigner(true);
-      const daoContract = getDaoContractInstance(signer);
-      const txn = await daoContract.executeProposal(proposalId);
-      setLoading(true);
-      await txn.wait();
-      setLoading(false);
-      await fetchAllProposals();
-    } catch (error) {
-      console.error(error);
-      window.alert(error.data.message);
-    }
-  };
-
-  // Helper function to fetch a Provider/Signer instance from Metamask
-  const getProviderOrSigner = async (needSigner = false) => {
-    const provider = await web3ModalRef.current.connect();
-    const web3Provider = new providers.Web3Provider(provider);
-
-    const { chainId } = await web3Provider.getNetwork();
-    if (chainId !== 3) {
-      window.alert("Please switch to the Ropsten network!");
-      throw new Error("Please switch to the Ropsten network");
-    }
-
-    if (needSigner) {
-      const signer = web3Provider.getSigner();
-      return signer;
-    }
-    return web3Provider;
-  };
-
-  // Helper function to return a DAO Contract instance
-  // given a Provider/Signer
-  const getDaoContractInstance = (providerOrSigner) => {
-    return new Contract(
-      WHOLESOME_DAO_CONTRACT_ADDRESS,
-      WHOLESOME_DAO_ABI,
-      providerOrSigner
-    );
-  };
-
-  // Helper function to return a Wholesome NFT Contract instance
-  // given a Provider/Signer
-  const getWholesomeNFTContractInstance = (providerOrSigner) => {
-    return new Contract(
-      WHOLESOME_NFT_CONTRACT_ADDRESS,
-      WHOLESOME_NFT_ABI,
-      providerOrSigner
-    );
-  };
-
-  // piece of code that runs everytime the value of `walletConnected` changes
-  // so when a wallet connects or disconnects
-  // Prompts user to connect wallet if not connected
-  // and then calls helper functions to fetch the
-  // DAO Treasury Balance, User NFT Balance, and Number of Proposals in the DAO
   useEffect(() => {
-    if (!walletConnected) {
-      web3ModalRef.current = new Web3Modal({
-        network: "ropsten",
-        providerOptions: {},
-        disableInjectedProvider: false,
-      });
+    sdk.setProviderOrSigner(signer);
+  }, [signer]);
 
-      connectWallet().then(() => {
-        getDAOTreasuryBalance();
-        getUserNFTBalance();
-        getNumProposalsInDAO();
-      });
-    }
-  }, [walletConnected]);
-
-  // Piece of code that runs everytime the value of `selectedTab` changes
-  // Used to re-fetch all proposals in the DAO when user switches
-  // to the 'View Proposals' tab
   useEffect(() => {
-    if (selectedTab === "View Proposals") {
-      fetchAllProposals();
+    if (!address) {
+      return;
     }
-  }, [selectedTab]);
+    return bundleDropModule
+      .balanceOf(address, "0")
+      .then((balance) => {
+        if (balance.gt(0)) {
+          setHasClaimedNFT(true);
+          console.log("🌟 this user has a membership NFT!");
+        } else {
+          setHasClaimedNFT(false);
+          console.log("😭 this user doesn't have a membership NFT.");
+        }
+      })
+      .catch((error) => {
+        setHasClaimedNFT(false);
+        console.error("failed to nft balance", error);
+      });
+  }, [address]);
 
-  // Render the contents of the appropriate tab based on `selectedTab`
-  function renderTabs() {
-    if (selectedTab === "Create Proposal") {
-      return renderCreateProposalTab();
-    } else if (selectedTab === "View Proposals") {
-      return renderViewProposalsTab();
+  const [proposals, setProposals] = useState([]);
+  const [isVoting, setIsVoting] = useState(false);
+  const [hasVoted, setHasVoted] = useState(false);
+
+  useEffect(() => {
+    if (!hasClaimedNFT) {
+      return;
     }
-    return null;
+    voteModule
+      .getAll()
+      .then((proposals) => {
+        setProposals(proposals);
+        console.log("🌈 Proposals:", proposals);
+      })
+      .catch((err) => {
+        console.error("failed to get proposals", err);
+      });
+  }, [hasClaimedNFT]);
+
+  useEffect(() => {
+    if (!hasClaimedNFT) {
+      return;
+    }
+    if (!proposals.length) {
+      return;
+    }
+
+    voteModule
+      .hasVoted(proposals[0].proposalId, address)
+      .then((hasVoted) => {
+        setHasVoted(hasVoted);
+        console.log("🥵 User has already voted");
+      })
+      .catch((err) => {
+        console.error("failed to check if wallet has voted", err);
+      });
+  }, [hasClaimedNFT, proposals, address]);
+
+  if (error && error.name === "UnsupportedChainIdError") {
+    return (
+      <div className="unsupported-network">
+        <h2>Please connect to Rinkeby</h2>
+        <p>
+          This dapp only works on the Rinkeby network, please switch networks
+          in your connected wallet.
+        </p>
+      </div>
+    );
   }
 
-  // Renders the 'Create Proposal' tab content
-  function renderCreateProposalTab() {
-    if (loading) {
-      return (
-        <div className={styles.description}>
-          Loading... Waiting for transaction...
-        </div>
-      );
-    } else if (nftBalance === 0) {
-      return (
-        <div className={styles.description}>
-          You do not own any Wholesome NFTs. <br />
-          <b>You cannot create or vote on proposals</b>
-        </div>
-      );
-    } else {
-      return (
-        <div className={styles.container}>
-          <label>Fake NFT Token ID to Purchase: </label>
-          <input
-            placeholder="0"
-            type="number"
-            onChange={(e) => setFakeNftTokenId(e.target.value)}
-          />
-          <button className={styles.button2} onClick={createProposal}>
-            Create
-          </button>
-        </div>
-      );
-    }
+  if (!address) {
+    return (
+      <div className="landing">
+        <h1>Welcome to Wholesome DAO</h1>
+        <button onClick={() => connectWallet("injected")} className="btn-hero">
+          Connect your wallet
+        </button>
+      </div>
+    );
   }
 
-  // Renders the 'View Proposals' tab content
-  function renderViewProposalsTab() {
-    if (loading) {
-      return (
-        <div className={styles.description}>
-          Loading... Waiting for transaction...
-        </div>
-      );
-    } else if (proposals.length === 0) {
-      return (
-        <div className={styles.description}>
-          No proposals have been created
-        </div>
-      );
-    } else {
-      return (
+  if (hasClaimedNFT) {
+    return (
+      <div className="member-page">
+        <h1>Wholesome Member Page</h1>
+        <p>Congratulations on being a member</p>
         <div>
-          {proposals.map((p, index) => (
-            <div key={index} className={styles.proposalCard}>
-              <p>Proposal ID: {p.proposalId}</p>
-              <p>Fake NFT to Purchase: {p.nftTokenId}</p>
-              <p>Deadline: {p.deadline.toLocaleString()}</p>
-              <p>Yay Votes: {p.yayVotes}</p>
-              <p>Nay Votes: {p.nayVotes}</p>
-              <p>Executed?: {p.executed.toString()}</p>
-              {p.deadline.getTime() > Date.now() && !p.executed ? (
-                <div className={styles.flex}>
-                  <button
-                    className={styles.button2}
-                    onClick={() => voteOnProposal(p.proposalId, "YAY")}
-                  >
-                    Vote YAY
-                  </button>
-                  <button
-                    className={styles.button2}
-                    onClick={() => voteOnProposal(p.proposalId, "NAY")}
-                  >
-                    Vote NAY
-                  </button>
-                </div>
-              ) : p.deadline.getTime() < Date.now() && !p.executed ? (
-                <div className={styles.flex}>
-                  <button
-                    className={styles.button2}
-                    onClick={() => executeProposal(p.proposalId)}
-                  >
-                    Execute Proposal{" "}
-                    {p.yayVotes > p.nayVotes ? "(YAY)" : "(NAY)"}
-                  </button>
-                </div>
-              ) : (
-                <div className={styles.description}>Proposal Executed</div>
-              )}
-            </div>
-          ))}
-        </div>
-      );
-    }
-  }
-
-  return (
-    <div>
-      <Head>
-        <title>Wholesome DAO</title>
-        <meta name="description" content="Wholesome DAO" />
-        <link rel="icon" href="/favicon.ico" />
-      </Head>
-
-      <div className={styles.main}>
-        <div>
-          <h1 className={styles.title}>Welcome to WholesomeDAO!</h1>
-          <div className={styles.description}></div>
-          <div className={styles.description}>
-            Your WholesomeNFT Balance: {nftBalance}
-            <br />
-            Treasury Balance: {formatEther(treasuryBalance)} ETH
-            <br />
-            Total Number of Proposals: {numProposals}
+          <div>
+            <h2>Member List</h2>
+            <table className="card">
+              <thead>
+                <tr>
+                  <th>Address</th>
+                  <th>Token Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {memberList.map((member) => {
+                  return (
+                    <tr key={member.address}>
+                      <td>{shortenAddress(member.address)}</td>
+                      <td>{member.tokenAmount}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
-          <div className={styles.flex}>
-            <button
-              className={styles.button}
-              onClick={() => setSelectedTab("Create Proposal")}
+          <div>
+            <h2>Active Proposals</h2>
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsVoting(true);
+
+                const votes = proposals.map((proposal) => {
+                  let voteResult = {
+                    proposalId: proposal.proposalId,
+                    vote: 2,
+                  };
+                  proposal.votes.forEach((vote) => {
+                    const elem = document.getElementById(
+                      proposal.proposalId + "-" + vote.type
+                    );
+
+                    if (elem.checked) {
+                      voteResult.vote = vote.type;
+                      return;
+                    }
+                  });
+                  return voteResult;
+                });
+
+                try {
+                  const delegation = await tokenModule.getDelegationOf(address);
+                  if (delegation === ethers.constants.AddressZero) {
+                    await tokenModule.delegateTo(address);
+                  }
+                  try {
+                    await Promise.all(
+                      votes.map(async (vote) => {
+                        const proposal = await voteModule.get(vote.proposalId);
+                        if (proposal.state === 1) {
+                          return voteModule.vote(vote.proposalId, vote.vote);
+                        }
+                        return;
+                      })
+                    );
+                    try {
+                      await Promise.all(
+                        votes.map(async (vote) => {
+                          const proposal = await voteModule.get(
+                            vote.proposalId
+                          );
+                          if (proposal.state === 4) {
+                            return voteModule.execute(vote.proposalId);
+                          }
+                        })
+                      );
+                      setHasVoted(true);
+                      console.log("successfully voted");
+                    } catch (err) {
+                      console.error("failed to execute votes", err);
+                    }
+                  } catch (err) {
+                    console.error("failed to vote", err);
+                  }
+                } catch (err) {
+                  console.error("failed to delegate tokens");
+                } finally {
+                  setIsVoting(false);
+                }
+              }}
             >
-              Create Proposal
-            </button>
-            <button
-              className={styles.button}
-              onClick={() => setSelectedTab("View Proposals")}
-            >
-              View Proposals
-            </button>
+              {proposals.map((proposal, index) => (
+                <div key={proposal.proposalId} className="card">
+                  <h5>{proposal.description}</h5>
+                  <div>
+                    {proposal.votes.map((vote) => (
+                      <div key={vote.type}>
+                        <input
+                          type="radio"
+                          id={proposal.proposalId + "-" + vote.type}
+                          name={proposal.proposalId}
+                          value={vote.type}
+                          defaultChecked={vote.type === 2}
+                        />
+                        <label htmlFor={proposal.proposalId + "-" + vote.type}>
+                          {vote.label}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              <button disabled={isVoting || hasVoted} type="submit">
+                {isVoting
+                  ? "Voting..."
+                  : hasVoted
+                    ? "You Already Voted"
+                    : "Submit Votes"}
+              </button>
+              <small>
+                This will trigger multiple transactions that you will need to
+                sign.
+              </small>
+            </form>
           </div>
-          {renderTabs()}
-        </div>
-        <div>
-          <img className={styles.image} src="/0.svg" />
         </div>
       </div>
+    );
+  };
 
-      <footer className={styles.footer}>
-        Made with &#10084;
-      </footer>
+  return (
+    <div className="mint-nft">
+      <h1>Mint your free Wholesome Membership NFT</h1>
+      <button
+        disabled={isClaiming}
+        onClick={() => {
+          setIsClaiming(true);
+          bundleDropModule
+            .claim("0", 1)
+            .catch((err) => {
+              console.error("failed to claim", err);
+              setIsClaiming(false);
+            })
+            .finally(() => {
+              setIsClaiming(false);
+              setHasClaimedNFT(true);
+              console.log(
+                `Successfully Minted! Check it our on OpenSea: https://testnets.opensea.io/assets/${bundleDropModule.address}/0`
+              );
+            });
+        }}
+      >
+        {isClaiming ? "Minting..." : "Mint your nft (FREE)"}
+      </button>
     </div>
   );
-}
+};

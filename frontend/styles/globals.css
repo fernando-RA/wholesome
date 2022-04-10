@@ -1,16 +1,225 @@
 html,
 body {
-  padding: 0;
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
-    Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
+  font-family: Inter, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #ff680d;
+  color: #fff;
+  overflow-x: hidden;
+}
+#root {
+  min-height: 100vh;
+  display: flex;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+h1 {
+  font-size: 5rem;
+}
+@media screen and (max-width: 768px) {
+  h1 {
+    font-size: 3rem;
+  }
+}
+button {
+  cursor: pointer;
+  background-color: #000;
+  color: #fff;
+  border: none;
+  font-weight: bold;
+  font-family: inherit;
+  padding: 1.2rem 2rem;
+  text-transform: uppercase;
+  border-radius: 3rem;
+  font-size: 1.2rem;
 }
 
-* {
-  box-sizing: border-box;
+button:hover {
+  background-color: #121212;
 }
+
+button:focus {
+  background-color: #222;
+}
+
+button:disabled {
+  opacity: 0.8;
+  pointer-events: none;
+}
+.main {
+  min-height: 90vh;
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  font-family: "Courier New", Courier, monospace;
+}
+
+.footer {
+  display: flex;
+  padding: 2rem 0;
+  border-top: 1px solid #eaeaea;
+  justify-content: center;
+  align-items: center;
+}
+
+.image {
+  width: 70%;
+  height: 50%;
+  margin-left: 20%;
+}
+
+.title {
+  font-size: 2rem;
+  margin: 2rem 0;
+}
+
+.description {
+  line-height: 1;
+  margin: 2rem 0;
+  font-size: 1.2rem;
+}
+
+.button {
+  border-radius: 4px;
+  background-color: blue;
+  border: none;
+  color: #ffffff;
+  font-size: 15px;
+  padding: 10px;
+  width: 200px;
+  cursor: pointer;
+  margin-right: 2%;
+}
+
+.button2 {
+  border-radius: 4px;
+  background-color: indigo;
+  border: none;
+  color: #ffffff;
+  font-size: 15px;
+  padding: 10px;
+  cursor: pointer;
+  margin-right: 2%;
+  margin-top: 1rem;
+}
+
+.proposalCard {
+  width: fit-content;
+  margin-top: 0.25rem;
+  border: black 2px solid;
+  flex: 1;
+  flex-direction: column;
+}
+
+.container {
+  margin-top: 2rem;
+}
+
+.flex {
+  flex: 1;
+  justify-content: space-between;
+}
+
+@media (max-width: 1000px) {
+  .main {
+    width: 100%;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+  }
+}
+
+
+.unsupported-network {
+  width: 340px;
+  max-width: 100%;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+  margin: auto;
+  padding: 1rem;
+}
+
+.error {
+  width: 340px;
+  max-width: 100%;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+  margin: auto;
+  padding: 1rem;
+  border-radius: 1rem;
+  background-color: #f00;
+}
+
+.landing,
+.connect-wallet,
+.mint-nft,
+.member-page {
+  flex-direction: column;
+  width: 960px;
+  max-width: calc(100% - 1rem);
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+  margin: auto;
+  align-content: center;
+  display: flex;
+  text-align: center;
+}
+
+.member-page > div {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  text-align: left;
+  gap: 2rem;
+}
+.member-page > div > div {
+  display: flex;
+  flex-direction: column;
+  width: 50%;
+  gap: 1rem;
+}
+@media screen and (max-width: 768px) {
+  .member-page > div {
+    flex-direction: column;
+  }
+  .member-page > div > div {
+    width: 100%;
+  }
+}
+
+.member-page form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.member-page form > div {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.member-page form h5 {
+  margin-top: 0;
+  color: #0da4ff;
+}
+
+.member-page form .card > div {
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.member-page form small {
+  text-align: center;
+}
+
+.card {
+  background-color: #fff;
+  padding: 1rem;
+  border-radius: 1rem;
+  color: #000;
+  box-shadow: 3.1px 6.2px 6.2px hsl(0deg 0% 0% / 0.4);
+}
+
